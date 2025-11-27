@@ -104,15 +104,32 @@ export async function renameFiles(options: FileRenameOptions): Promise<void> {
   onProgress?.('📂 正在读取目录...');
 
   // 读取目录下的所有文件，过滤掉系统文件
-  const files = fs.readdirSync(directory).filter((file) => {
-    // 过滤掉 .DS_Store 等系统文件
-    if (file === '.DS_Store') {
-      return false;
-    }
+  const files = fs
+    .readdirSync(directory)
+    .filter((file) => {
+      // 过滤掉 .DS_Store 等系统文件
+      if (file === '.DS_Store') {
+        return false;
+      }
 
-    const filePath = path.join(directory, file);
-    return fs.statSync(filePath).isFile();
-  });
+      const filePath = path.join(directory, file);
+      return fs.statSync(filePath).isFile();
+    })
+    .sort((a, b) => {
+      // 先按扩展名分组，再在组内按文件名自然排序
+      const extA = path.extname(a).toLowerCase();
+      const extB = path.extname(b).toLowerCase();
+      const nameA = path.basename(a, extA);
+      const nameB = path.basename(b, extB);
+
+      // 扩展名不同时，按扩展名排序
+      if (extA !== extB) {
+        return extA.localeCompare(extB);
+      }
+
+      // 扩展名相同时，按文件名自然排序
+      return nameA.localeCompare(nameB, undefined, { numeric: true });
+    });
 
   if (files.length === 0) {
     onProgress?.('⚠️  目录中没有文件');
