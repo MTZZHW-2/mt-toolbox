@@ -1,0 +1,28 @@
+# Build outputs
+dist/
+out/
+native/build/*
+!native/build/*.sh
+!native/build/*.ps1
+!native/build/*.txt
+resources/bin/*-macos-arm64
+resources/bin/*-macos-x64
+resources/bin/*-linux-x64
+resources/bin/*-windows-x64.exe
+
+# Node.js
+node_modules/
+
+# Python
+native/.venv/
+native/__pycache__/
+
+# ESLint
+.eslintcache
+
+# OS
+.DS_Store
+
+# Telegram session
+native/*.session
+native/*.session-journal

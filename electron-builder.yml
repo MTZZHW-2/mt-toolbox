@@ -1,0 +1,44 @@
+appId: com.mtzzhw.mt-toolbox
+productName: MT工具箱
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+  - '**/exiftool-vendored/**'
+  - '**/exiftool-vendored.pl/**'
+
+win:
+  target:
+    - nsis
+  executableName: MT工具箱
+  artifactName: ${name}-${version}-${arch}-setup.${ext}
+nsis:
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+
+mac:
+  target:
+    - dmg
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+  artifactName: ${name}-${version}-${arch}.${ext}
+
+linux:
+  target:
+    - AppImage
+  maintainer: MTZZHW <root@mtzzhw.com>
+  category: Utility
+  artifactName: ${name}-${version}-${arch}.${ext}
+
+npmRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
