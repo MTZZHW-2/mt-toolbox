@@ -25,6 +25,7 @@ export interface ImageOptimizeOptions {
   maxHeight?: number;
   format?: 'jpeg' | 'png' | 'webp';
   keepOriginal?: boolean;
+  minFileSize?: number;
 }
 
 export interface FileRenameOptions {

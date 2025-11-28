@@ -100,6 +100,7 @@ export async function optimizeImages(options: ImageOptimizeOptions): Promise<Too
     maxHeight,
     format = 'jpeg',
     keepOriginal = true,
+    minFileSize,
     onProgress,
   } = options;
 
@@ -132,10 +133,14 @@ export async function optimizeImages(options: ImageOptimizeOptions): Promise<Too
   if (maxWidth || maxHeight) {
     onProgress?.(`📐 尺寸限制: ${maxWidth || '∞'}x${maxHeight || '∞'}\n`);
   }
+  if (minFileSize) {
+    onProgress?.(`📏 最小文件大小: ${minFileSize} MB\n`);
+  }
   onProgress?.('\n开始压缩...\n');
 
   let successCount = 0;
   let failedCount = 0;
+  let skippedCount = 0;
   let totalOriginalSize = 0;
   let totalOptimizedSize = 0;
 
@@ -147,11 +152,19 @@ export async function optimizeImages(options: ImageOptimizeOptions): Promise<Too
     try {
       onProgress?.(`[${i + 1}/${imageFiles.length}] 正在处理: ${filename}`);
 
-      const outputPath = getOutputFilePath(inputPath, outputDir, format, keepOriginal);
-
       // 获取原始文件大小
       const originalStats = fs.statSync(inputPath);
       const originalSize = originalStats.size;
+      const originalSizeMB = originalSize / 1024 / 1024;
+
+      // 检查文件大小是否满足最小要求
+      if (minFileSize && originalSizeMB < minFileSize) {
+        skippedCount++;
+        onProgress?.(` ⏭️  跳过 (${originalSizeMB.toFixed(2)} MB < ${minFileSize} MB)\n`);
+        continue;
+      }
+
+      const outputPath = getOutputFilePath(inputPath, outputDir, format, keepOriginal);
 
       // 压缩图片
       await optimizeImage(inputPath, outputPath, {
@@ -185,6 +198,9 @@ export async function optimizeImages(options: ImageOptimizeOptions): Promise<Too
 
   onProgress?.('\n📊 压缩完成！\n');
   onProgress?.(`✅ 成功: ${successCount} 张\n`);
+  if (skippedCount > 0) {
+    onProgress?.(`⏭️  跳过: ${skippedCount} 张\n`);
+  }
   onProgress?.(`❌ 失败: ${failedCount} 张\n`);
   onProgress?.(
     `💾 原始大小: ${(totalOriginalSize / 1024 / 1024).toFixed(2)} MB → 压缩后: ${(totalOptimizedSize / 1024 / 1024).toFixed(2)} MB\n`,

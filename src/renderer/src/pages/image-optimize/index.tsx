@@ -20,6 +20,7 @@ export default function ImageOptimize() {
   const [maxWidth, setMaxWidth] = usePersistedState('image-optimize', 'maxWidth', '');
   const [maxHeight, setMaxHeight] = usePersistedState('image-optimize', 'maxHeight', '');
   const [format, setFormat] = usePersistedState<'jpeg' | 'png' | 'webp'>('image-optimize', 'format', 'jpeg');
+  const [minFileSize, setMinFileSize] = useState('');
   const [keepOriginal, setKeepOriginal] = useState(true);
   const [useCustomOutput, setUseCustomOutput] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -80,6 +81,7 @@ export default function ImageOptimize() {
         maxHeight: maxHeight ? parseInt(maxHeight) : undefined,
         format,
         keepOriginal,
+        minFileSize: minFileSize ? parseInt(minFileSize) : undefined,
       });
 
       unsubscribe();
@@ -184,6 +186,20 @@ export default function ImageOptimize() {
                   disabled={isProcessing}
                 />
                 <p className="text-muted-foreground text-sm">数值越高，质量越好，文件越大</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>最小文件大小 (MB，可选)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={minFileSize}
+                  onChange={(e) => setMinFileSize(e.target.value)}
+                  placeholder="不限制"
+                  disabled={isProcessing}
+                />
+                <p className="text-muted-foreground text-sm">只压缩大于此大小的图片，小文件将被跳过</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
