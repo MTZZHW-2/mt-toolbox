@@ -4,6 +4,7 @@ import type { ImageDeduplicationResult } from '@shared/types/image-deduplication
 import type { VideoDeduplicationResult } from '@shared/types/video-deduplication';
 import type { ToolResult } from '@shared/types/common';
 import type { ElectronAPI } from '@electron-toolkit/preload';
+import type { TelegramDownloadMode } from '../shared/types/telegram-download';
 
 export interface ImageDeduplicationOptions {
   sourceDir: string;
@@ -42,11 +43,13 @@ export interface TwitterDownloadOptions {
 }
 
 export interface TelegramDownloadOptions {
+  mode: TelegramDownloadMode;
   apiId: string;
   apiHash: string;
   url: string;
   outputPath?: string;
   maxPages?: string;
+  startFrom?: string;
 }
 
 export interface VideoConverterOptions {

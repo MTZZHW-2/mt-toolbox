@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { LogEntry } from '@shared/types/common';
+import type { TelegramDownloadMode } from '@shared/types/telegram-download';
 import { useToolMeta } from '@renderer/hooks/use-tool-meta';
 
 import { LogDisplay } from '@renderer/components/log-display';
@@ -15,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@renderer/components/base/dialog';
+import Select from '@renderer/components/ui/select';
 import { usePersistedState } from '@renderer/hooks/use-persisted-state';
 import { SettingsIcon } from 'lucide-react';
 
@@ -24,6 +26,7 @@ export default function TelegramDownload() {
   const [apiId, setApiId] = usePersistedState('telegram-download', 'apiId', '');
   const [apiHash, setApiHash] = usePersistedState('telegram-download', 'apiHash', '');
 
+  const [mode, setMode] = useState<TelegramDownloadMode>('bot');
   const [url, setUrl] = useState('');
   const [outputPath, setOutputPath] = usePersistedState(
     'telegram-download',
@@ -31,6 +34,7 @@ export default function TelegramDownload() {
     async () => (await window.api.getDownloadsPath()) || '',
   );
   const [maxPages, setMaxPages] = usePersistedState('telegram-download', 'maxPages', '100');
+  const [startFrom, setStartFrom] = useState('1');
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -111,11 +115,13 @@ export default function TelegramDownload() {
       });
 
       const result = await window.api.telegramDownload({
+        mode,
         apiId,
         apiHash,
         url,
         outputPath,
         maxPages,
+        startFrom,
       });
 
       // 清理监听
@@ -183,12 +189,28 @@ export default function TelegramDownload() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="mode">下载模式 *</Label>
+              <Select
+                value={mode}
+                onValueChange={(value) => setMode(value as TelegramDownloadMode)}
+                options={[
+                  { value: 'bot', label: 'Bot 深链下载' },
+                  { value: 'channel-comments', label: '频道评论下载' },
+                ]}
+                placeholder="选择下载模式"
+                disabled={isProcessing}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="url">Telegram 链接 *</Label>
               <Input
                 id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://t.me/username?start=参数"
+                placeholder={
+                  mode === 'bot' ? 'https://t.me/username?start=参数' : 'https://t.me/ChannelUsername/MessageID'
+                }
                 disabled={isProcessing}
               />
             </div>
@@ -210,20 +232,39 @@ export default function TelegramDownload() {
               </div>
             </div>
 
-            {/* 最大翻页次数 */}
-            <div className="space-y-2">
-              <Label htmlFor="maxPages">最大翻页次数</Label>
-              <Input
-                id="maxPages"
-                type="number"
-                min="0"
-                value={maxPages}
-                onChange={(e) => setMaxPages(e.target.value)}
-                disabled={isProcessing}
-                className="w-32"
-              />
-              <p className="text-muted-foreground text-sm">设为 0 表示不限制</p>
-            </div>
+            {/* 最大翻页次数 - 仅 Bot 模式 */}
+            {mode === 'bot' && (
+              <div className="space-y-2">
+                <Label htmlFor="maxPages">最大翻页次数</Label>
+                <Input
+                  id="maxPages"
+                  type="number"
+                  min="0"
+                  value={maxPages}
+                  onChange={(e) => setMaxPages(e.target.value)}
+                  disabled={isProcessing}
+                  className="w-32"
+                />
+                <p className="text-muted-foreground text-sm">设为 0 表示不限制</p>
+              </div>
+            )}
+
+            {/* 起始位置 - 仅频道评论模式 */}
+            {mode === 'channel-comments' && (
+              <div className="space-y-2">
+                <Label htmlFor="startFrom">从第几个资源开始下载</Label>
+                <Input
+                  id="startFrom"
+                  type="number"
+                  min="1"
+                  value={startFrom}
+                  onChange={(e) => setStartFrom(e.target.value)}
+                  disabled={isProcessing}
+                  className="w-32"
+                />
+                <p className="text-muted-foreground text-sm">默认从第 1 个资源开始</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

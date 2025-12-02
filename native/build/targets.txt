@@ -1,3 +1,4 @@
 # 需要打包的脚本
 
 bot_downloader.py
+channel_comments_downloader.py

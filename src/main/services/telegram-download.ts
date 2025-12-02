@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { app } from 'electron';
 import type { TelegramDownloadOptions as BaseTelegramDownloadOptions } from 'src/preload/types';
+import type { TelegramDownloadMode } from '@shared/types/telegram-download';
 
 interface TelegramDownloadOptions extends BaseTelegramDownloadOptions {
   onProgress?: (message: string) => void;
@@ -25,10 +26,10 @@ function getSessionDirectory(): string {
 /**
  * 获取二进制文件路径或 Python 脚本路径
  */
-function getBinaryPath(): { command: string; scriptPath?: string } {
+function getBinaryPath(mode: TelegramDownloadMode): { command: string; scriptPath?: string } {
   const platform = process.platform;
   const arch = process.arch;
-  let binaryName: string = 'bot_downloader';
+  let binaryName: string = mode === 'bot' ? 'bot_downloader' : 'channel_comments_downloader';
 
   // 开发环境:直接使用 Python 脚本
   if (!app.isPackaged) {
@@ -59,13 +60,23 @@ function getBinaryPath(): { command: string; scriptPath?: string } {
  * 执行 Telegram 下载
  */
 export async function downloadFromTelegram(options: TelegramDownloadOptions): Promise<void> {
-  const { apiId, apiHash, url, outputPath = '', maxPages = '100', onProgress, onInputRequired } = options;
+  const {
+    apiId,
+    apiHash,
+    url,
+    outputPath = '',
+    maxPages = '100',
+    startFrom = '1',
+    mode = 'bot',
+    onProgress,
+    onInputRequired,
+  } = options;
   const sessionName = 'downloader';
   const sessionDir = getSessionDirectory();
 
   return new Promise((resolve, reject) => {
     try {
-      const { command, scriptPath } = getBinaryPath();
+      const { command, scriptPath } = getBinaryPath(mode);
       const isPythonScript = !!scriptPath;
 
       // 构建参数数组
@@ -85,9 +96,17 @@ export async function downloadFromTelegram(options: TelegramDownloadOptions): Pr
         sessionName,
         '--session-dir',
         sessionDir,
-        '--max-pages',
-        String(maxPages),
       );
+
+      // Bot 模式才需要 maxPages 参数
+      if (mode === 'bot') {
+        args.push('--max-pages', String(maxPages));
+      }
+
+      // 频道评论模式才需要 startFrom 参数
+      if (mode === 'channel-comments' && startFrom !== '1') {
+        args.push('--start-from', String(startFrom));
+      }
 
       const childProcess = spawn(command, args);
 
