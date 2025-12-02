@@ -33,14 +33,26 @@ interface TweetLegacy {
   };
 }
 
+// 推文结果类型 - 标准推文
+interface StandardTweet {
+  __typename?: 'Tweet';
+  legacy?: TweetLegacy;
+}
+
+// 推文结果类型 - 带可见性限制的推文
+interface TweetWithVisibilityResults {
+  __typename: 'TweetWithVisibilityResults';
+  tweet: StandardTweet;
+}
+
+export type TweetResult = StandardTweet | TweetWithVisibilityResults;
+
 // 时间线项
 interface TimelineItem {
   item?: {
     itemContent?: {
       tweet_results?: {
-        result?: {
-          legacy?: TweetLegacy;
-        };
+        result?: TweetResult;
       };
     };
   };

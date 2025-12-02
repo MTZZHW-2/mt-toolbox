@@ -2,10 +2,23 @@ import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import type { TwitterDownloadOptions as BaseTwitterDownloadOptions } from 'src/preload/types';
-import type { TwitterUserData, TwitterMediaData } from '@shared/types/twitter-download';
+import type { TwitterUserData, TwitterMediaData, TweetResult } from '@shared/types/twitter-download';
 
 interface TwitterDownloadOptions extends BaseTwitterDownloadOptions {
   onProgress?: (message: string) => void;
+}
+
+// 从推文结果中提取实际的推文数据
+function extractActualTweet(tweetResult: TweetResult | undefined) {
+  if (!tweetResult) return undefined;
+
+  // 如果是 TweetWithVisibilityResults 类型，返回内嵌的 tweet
+  if (tweetResult.__typename === 'TweetWithVisibilityResults') {
+    return tweetResult.tweet;
+  }
+
+  // 否则直接返回标准推文
+  return tweetResult;
 }
 
 export async function downloadTwitterMedia(options: TwitterDownloadOptions): Promise<void> {
@@ -175,8 +188,10 @@ export async function downloadTwitterMedia(options: TwitterDownloadOptions): Pro
         const moduleItems = instruction.moduleItems || [];
         for (const item of moduleItems) {
           const tweetResult = item.item?.itemContent?.tweet_results?.result;
-          if (tweetResult?.legacy) {
-            const tweet = tweetResult.legacy;
+          const actualTweet = extractActualTweet(tweetResult);
+
+          if (actualTweet?.legacy) {
+            const tweet = actualTweet.legacy;
             const isRetweet = tweet.retweeted_status_result || tweet.full_text?.startsWith('RT @');
 
             if (!includeRetweets && isRetweet) continue;
@@ -229,8 +244,10 @@ export async function downloadTwitterMedia(options: TwitterDownloadOptions): Pro
             const items = entry.content.items;
             for (const item of items) {
               const tweetResult = item.item?.itemContent?.tweet_results?.result;
-              if (tweetResult?.legacy) {
-                const tweet = tweetResult.legacy;
+              const actualTweet = extractActualTweet(tweetResult);
+
+              if (actualTweet?.legacy) {
+                const tweet = actualTweet.legacy;
                 const isRetweet = tweet.retweeted_status_result || tweet.full_text?.startsWith('RT @');
 
                 if (!includeRetweets && isRetweet) continue;
