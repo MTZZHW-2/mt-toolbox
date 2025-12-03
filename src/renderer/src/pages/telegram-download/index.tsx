@@ -196,6 +196,7 @@ export default function TelegramDownload() {
                 options={[
                   { value: 'bot', label: 'Bot 深链下载' },
                   { value: 'channel-comments', label: '频道评论下载' },
+                  { value: 'topic', label: '话题下载' },
                 ]}
                 placeholder="选择下载模式"
                 disabled={isProcessing}
@@ -209,7 +210,11 @@ export default function TelegramDownload() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={
-                  mode === 'bot' ? 'https://t.me/username?start=参数' : 'https://t.me/ChannelUsername/MessageID'
+                  mode === 'bot'
+                    ? 'https://t.me/username?start=参数'
+                    : mode === 'channel-comments'
+                      ? 'https://t.me/ChannelUsername/MessageID'
+                      : 'https://t.me/ChannelUsername/TopicID'
                 }
                 disabled={isProcessing}
               />

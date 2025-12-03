@@ -29,7 +29,15 @@ function getSessionDirectory(): string {
 function getBinaryPath(mode: TelegramDownloadMode): { command: string; scriptPath?: string } {
   const platform = process.platform;
   const arch = process.arch;
-  let binaryName: string = mode === 'bot' ? 'bot_downloader' : 'channel_comments_downloader';
+  let binaryName: string;
+
+  if (mode === 'bot') {
+    binaryName = 'bot_downloader';
+  } else if (mode === 'channel-comments') {
+    binaryName = 'channel_comments_downloader';
+  } else {
+    binaryName = 'topic_downloader';
+  }
 
   // 开发环境:直接使用 Python 脚本
   if (!app.isPackaged) {

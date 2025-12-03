@@ -1,4 +1,4 @@
 /**
  * Telegram 下载模式
  */
-export type TelegramDownloadMode = 'bot' | 'channel-comments';
+export type TelegramDownloadMode = 'bot' | 'channel-comments' | 'topic';
