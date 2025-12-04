@@ -49,6 +49,7 @@ export interface TelegramDownloadOptions {
   url: string;
   outputPath?: string;
   startFrom?: string;
+  waitInterval?: number;
 }
 
 export interface VideoConverterOptions {

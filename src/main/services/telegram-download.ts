@@ -68,7 +68,17 @@ function getBinaryPath(mode: TelegramDownloadMode): { command: string; scriptPat
  * 执行 Telegram 下载
  */
 export async function downloadFromTelegram(options: TelegramDownloadOptions): Promise<void> {
-  const { apiId, apiHash, url, outputPath = '', startFrom = '1', mode = 'bot', onProgress, onInputRequired } = options;
+  const {
+    apiId,
+    apiHash,
+    url,
+    outputPath = '',
+    startFrom = '1',
+    waitInterval = 20,
+    mode = 'bot',
+    onProgress,
+    onInputRequired,
+  } = options;
   const sessionName = 'downloader';
   const sessionDir = getSessionDirectory();
 
@@ -99,6 +109,11 @@ export async function downloadFromTelegram(options: TelegramDownloadOptions): Pr
       // 频道评论模式才需要 startFrom 参数
       if (mode === 'channel-comments' && startFrom !== '1') {
         args.push('--start-from', String(startFrom));
+      }
+
+      // Bot 模式才需要 waitInterval 参数
+      if (mode === 'bot' && waitInterval !== 20) {
+        args.push('--wait-interval', String(waitInterval));
       }
 
       const childProcess = spawn(command, args);

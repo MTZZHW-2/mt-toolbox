@@ -211,7 +211,7 @@ async def find_next_page_button(messages, current_page):
     return None, None
 
 
-async def interact_with_bot(client: TelegramClient, bot_username: str, start_param: str, out_dir: Path):
+async def interact_with_bot(client: TelegramClient, bot_username: str, start_param: str, out_dir: Path, wait_interval: int = 20):
     """
     与Bot交互，发送start命令并下载所有返回的媒体资源
     """
@@ -235,8 +235,6 @@ async def interact_with_bot(client: TelegramClient, bot_username: str, start_par
         total_downloaded = 0
         current_page = 1
         downloaded_message_ids = set()  # 记录已下载的消息ID，避免重复
-
-        wait_interval = 20  # 等待Bot回复的间隔时间（秒）
 
         # 等待重试相关变量
         max_wait_retries = 5  # 最大等待重试次数
@@ -332,6 +330,7 @@ async def main():
     parser.add_argument("--out", default="downloads", help="输出目录 (默认: downloads)")
     parser.add_argument("--session", default="downloader", help="会话文件名 (默认: downloader)")
     parser.add_argument("--session-dir", default=None, help="会话文件目录 (默认: 脚本所在目录)")
+    parser.add_argument("--wait-interval", type=int, default=20, help="等待Bot回复的间隔时间(秒) (默认: 20)")
 
     args = parser.parse_args()
 
@@ -382,7 +381,7 @@ async def main():
                 return
 
         # 与Bot交互并下载资源
-        await interact_with_bot(client, bot_username, start_param, out_dir)
+        await interact_with_bot(client, bot_username, start_param, out_dir, args.wait_interval)
     finally:
         if client.is_connected():
             client.disconnect()

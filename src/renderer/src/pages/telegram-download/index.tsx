@@ -34,6 +34,7 @@ export default function TelegramDownload() {
     async () => (await window.api.getDownloadsPath()) || '',
   );
   const [startFrom, setStartFrom] = useState('1');
+  const [waitInterval, setWaitInterval] = usePersistedState('telegram-download', 'waitInterval', 20);
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -120,6 +121,7 @@ export default function TelegramDownload() {
         url,
         outputPath,
         startFrom,
+        waitInterval,
       });
 
       // 清理监听
@@ -249,6 +251,23 @@ export default function TelegramDownload() {
                   className="w-32"
                 />
                 <p className="text-muted-foreground text-sm">默认从第 1 个资源开始</p>
+              </div>
+            )}
+
+            {/* 等待间隔 - 仅 Bot 模式 */}
+            {mode === 'bot' && (
+              <div className="space-y-2">
+                <Label htmlFor="waitInterval">等待 Bot 回复的间隔时间（秒）</Label>
+                <Input
+                  id="waitInterval"
+                  type="number"
+                  min="1"
+                  value={waitInterval}
+                  onChange={(e) => setWaitInterval(Number(e.target.value))}
+                  disabled={isProcessing}
+                  className="w-32"
+                />
+                <p className="text-muted-foreground text-sm">默认 20 秒，如果 Bot 响应较慢可以适当增加</p>
               </div>
             )}
           </CardContent>
