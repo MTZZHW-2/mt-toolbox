@@ -15,12 +15,15 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from textwrap import dedent
 
+from typing import cast
+
 from telethon import TelegramClient
 from telethon.errors import (
     UsernameInvalidError,
     UsernameNotOccupiedError,
-    FloodWaitError
 )
+from telethon.hints import Entity, TotalList
+from telethon.tl.custom import Message
 
 from telegram_utils import custom_login, progress_callback
 
@@ -62,11 +65,11 @@ async def download_media_messages(client, messages, base_dir: Path, start_index=
     media_messages = []
 
     # 提取所有包含媒体的消息（排除自己发送的）
-    for msg in messages:
-        if msg.out:
+    for message in messages:
+        if message.out:
             continue
-        if msg.photo or msg.video or msg.document:
-            media_messages.append(msg)
+        if message.photo or message.video or message.document:
+            media_messages.append(message)
 
     if not media_messages:
         print("⚠️ 没有找到媒体消息")
@@ -81,26 +84,26 @@ async def download_media_messages(client, messages, base_dir: Path, start_index=
     images_dir.mkdir(parents=True, exist_ok=True)
     videos_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n开始下载 {len(media_messages)} 个媒体文件...")
+    print(f"开始下载 {len(media_messages)} 个媒体文件...")
 
     downloaded = 0
-    for idx, msg in enumerate(media_messages, start=start_index + 1):
+    for idx, message in enumerate(media_messages, start=start_index + 1):
         try:
             # 确定文件类型和扩展名
             is_image = False
             is_video = False
 
-            if msg.photo:
+            if message.photo:
                 ext = "jpg"
                 media_type = "图片"
                 is_image = True
-            elif msg.video:
+            elif message.video:
                 ext = "mp4"
                 media_type = "视频"
                 is_video = True
-            elif msg.document:
+            elif message.document:
                 # 从document中获取文件扩展名
-                mime_type = msg.document.mime_type
+                mime_type = message.document.mime_type
                 if mime_type.startswith("image/"):
                     ext = mime_type.split("/")[-1]
                     media_type = "图片"
@@ -128,9 +131,9 @@ async def download_media_messages(client, messages, base_dir: Path, start_index=
             temp_filepath = save_dir / temp_filename
 
             # 下载文件（带进度条）
-            print(f"  [{idx}/{start_index + len(media_messages)}] 下载{media_type}: {temp_filename}")
+            print(f"[{idx}/{start_index + len(media_messages)}] 下载{media_type}: {temp_filename}")
             await client.download_media(
-                msg,
+                message,
                 file=str(temp_filepath),
                 progress_callback=progress_callback(temp_filename)
             )
@@ -142,12 +145,12 @@ async def download_media_messages(client, messages, base_dir: Path, start_index=
 
             # 重命名文件
             temp_filepath.rename(new_filepath)
-            print(f"    ✓ 保存为: {new_filename}")
+            print(f"✅ 保存为: {new_filename}")
 
             downloaded += 1
 
         except Exception as e:
-            print(f"  ❌ 下载失败 (消息ID: {msg.id}): {e}")
+            print(f"❌ 下载失败 (消息ID: {message.id}): {e}")
             continue
 
     return downloaded
@@ -161,106 +164,119 @@ async def find_next_page_button(messages, current_page):
     只返回最新消息的按钮
     """
     # 先按消息ID排序，最新的在前
-    sorted_messages = sorted([m for m in messages if not m.out and m.buttons], key=lambda m: m.id, reverse=True)
+    sorted_messages = sorted([message for message in messages if not message.out and message.buttons], key=lambda message: message.id, reverse=True)
 
     if not sorted_messages:
         return None, None
 
     # 只查找最新的有按钮的消息
-    latest_msg = sorted_messages[0]
+    latest_message = sorted_messages[0]
 
-    next_arrow_btn = None
-    next_page_btn = None
+    next_arrow_button = None
+    next_page_button = None
     next_page_number = str(current_page + 1)  # 目标页码
 
     # 遍历这个消息的所有按钮
-    for row in latest_msg.buttons:
-        for btn in row:
+    for row in latest_message.buttons:
+        for button in row:
             # 检查按钮是否有回调数据（排除URL按钮）
-            if not hasattr(btn, 'data') or not btn.data:
+            if not hasattr(button, 'data') or not button.data:
                 continue
 
             # 检查回调数据是否包含分页信息（排除page_info）
-            btn_data_str = btn.data.decode('utf-8') if isinstance(btn.data, bytes) else str(btn.data)
+            button_data_str = button.data.decode('utf-8') if isinstance(button.data, bytes) else str(button.data)
 
             # 排除page_info（这是当前页或信息按钮）
-            if btn_data_str == 'page_info':
+            if button_data_str == 'page_info':
                 continue
 
             # 优先查找"下一页"类按钮
-            text = btn.text
+            text = button.text
             ARROW_TOKENS = ("▶️", "➡️")
             if any(tok in text for tok in ARROW_TOKENS):
-                next_arrow_btn = btn
+                next_arrow_button = button
 
             # 查找下一页的页码按钮
-            elif next_page_number in btn.text:
-                next_page_btn = btn
+            elif next_page_number in button.text:
+                next_page_button = button
 
     # 优先返回▶️按钮
-    if next_arrow_btn:
-        return latest_msg, next_arrow_btn
+    if next_arrow_button:
+        return latest_message, next_arrow_button
 
     # 其次返回下一页页码按钮
-    if next_page_btn:
-        return latest_msg, next_page_btn
+    if next_page_button:
+        return latest_message, next_page_button
 
     return None, None
 
 
-async def interact_with_bot(client, bot_username, start_param, out_dir: Path, max_pages=100):
+async def interact_with_bot(client: TelegramClient, bot_username: str, start_param: str, out_dir: Path):
     """
     与Bot交互，发送start命令并下载所有返回的媒体资源
     """
     try:
         # 获取Bot实体
         print(f"🤖 连接Bot: @{bot_username}")
-        bot_entity = await client.get_entity(bot_username)
+        bot_entity: Entity = cast(Entity, await client.get_entity(bot_username))
 
-        # 记录发送命令前的最新消息ID
-        old_messages = await client.get_messages(bot_entity, limit=1)
-        last_msg_id_before = old_messages[0].id if old_messages else 0
+        # 记录发送命令前的最后一条消息ID
+        old_messages: TotalList = cast(TotalList, await client.get_messages(bot_entity, limit=1))
+        baseline_message_id = old_messages[0].id if old_messages else 0
 
         # 发送/start命令（带参数）
         command = f"/start {start_param}"
         print(f"📤 发送命令: {command}")
+        print(f"{'='*60}")
 
         # 发送消息
         await client.send_message(bot_entity, command)
 
-        # 等待Bot回复
-        print("⏳ 等待Bot回复...")
-        await asyncio.sleep(5)
-
         total_downloaded = 0
         current_page = 1
-        downloaded_msg_ids = set()  # 记录已下载的消息ID，避免重复
+        downloaded_message_ids = set()  # 记录已下载的消息ID，避免重复
 
-        # 如果max_pages为0，表示不限制页数
-        unlimited = (max_pages == 0)
+        wait_interval = 20  # 等待Bot回复的间隔时间（秒）
+
+        # 等待重试相关变量
+        max_wait_retries = 5  # 最大等待重试次数
+        wait_retry_count = 0  # 当前等待重试计数
 
         # 循环处理所有页面
-        while unlimited or current_page <= max_pages:
-            print(f"\n{'='*60}")
-            print(f"📄 处理第 {current_page} 页")
-            print(f"{'='*60}")
+        while True:
+            # 等待Bot回复
+            print("⏳ 等待Bot回复...")
+            await asyncio.sleep(wait_interval)
 
-            # 获取最近的消息（只获取新消息）
-            messages = await client.get_messages(bot_entity, limit=50)
+            # 获取最近的消息（只获取新50条消息)
+            messages: TotalList = cast(TotalList, await client.get_messages(bot_entity, limit=50))
 
-            # 只处理本次对话的新消息
-            new_messages = [msg for msg in messages if msg.id > last_msg_id_before and msg.id not in downloaded_msg_ids]
+            # 过滤出新消息（ID大于baseline且未下载过的）
+            new_messages: list[Message] = [message for message in messages if message.id > baseline_message_id and message.id not in downloaded_message_ids]
 
             if not new_messages:
                 print("⚠️ 没有新消息")
                 break
 
+            # 检查是否有媒体消息
+            has_media = any(message.photo or message.video or message.document for message in new_messages if not message.out)
+            # 如果没有媒体但有新消息（可能是加载提示），尝试等待
+            if not has_media and new_messages and wait_retry_count < max_wait_retries:
+                wait_retry_count = wait_retry_count + 1
+                print(f"⏳ 资源加载中，等待 {wait_interval} 秒... (重试 {wait_retry_count}/{max_wait_retries})")
+                await asyncio.sleep(wait_interval)
+                continue  # 重新获取消息
+            # 重置等待计数器（找到媒体或超过最大重试次数）
+            if has_media:
+                wait_retry_count = 0
+
             # 记录这些消息的媒体ID
-            for msg in new_messages:
-                if msg.photo or msg.video or msg.document:
-                    downloaded_msg_ids.add(msg.id)
+            for message in new_messages:
+                if message.photo or message.video or message.document:
+                    downloaded_message_ids.add(message.id)
 
             # 下载当前页的媒体
+            print(f"📄 处理第 {current_page} 页")
             downloaded = await download_media_messages(
                 client,
                 new_messages,
@@ -272,23 +288,20 @@ async def interact_with_bot(client, bot_username, start_param, out_dir: Path, ma
             print(f"✅ 第 {current_page} 页完成，已下载 {downloaded} 个文件")
 
             # 查找下一页按钮
-            msg_with_btn, next_btn = await find_next_page_button(new_messages, current_page)
+            message_with_button, next_button = await find_next_page_button(new_messages, current_page)
 
-            if not next_btn or not msg_with_btn:
-                print("\n✅ 没有更多页面了")
+            if not next_button or not message_with_button:
+                print(f"{'='*60}")
+                print("✅ 没有更多页面了")
                 break
 
             # 点击下一页按钮
-            print(f"\n🔘 点击按钮: {next_btn.text}")
-            await msg_with_btn.click(data=next_btn.data)
+            print(f"🔘 点击按钮: {next_button.text}")
+            print(f"{'='*60}")
+            await message_with_button.click(data=next_button.data)
+            current_page = current_page + 1
 
-            # 等待新内容加载
-            print("⏳ 等待加载...")
-            await asyncio.sleep(4)
-
-            current_page += 1
-
-        print(f"\n{'='*60}")
+        print(f"{'='*60}")
         print(f"🎉 下载完成！")
         print(f"📊 总计下载: {total_downloaded} 个文件")
         print(f"📁 保存位置: {out_dir}")
@@ -319,7 +332,6 @@ async def main():
     parser.add_argument("--out", default="downloads", help="输出目录 (默认: downloads)")
     parser.add_argument("--session", default="downloader", help="会话文件名 (默认: downloader)")
     parser.add_argument("--session-dir", default=None, help="会话文件目录 (默认: 脚本所在目录)")
-    parser.add_argument("--max-pages", type=int, default=100, help="最大翻页次数 (默认: 100，设为0表示不限制)")
 
     args = parser.parse_args()
 
@@ -330,10 +342,9 @@ async def main():
     try:
         bot_username, start_param = parse_bot_deeplink(args.url)
         print(f"✅ 解析成功:")
-        print(f"  - Bot用户名: @{bot_username}")
-        print(f"  - Start参数: {start_param}")
-        print(f"  - 输出目录: {args.out}")
-        print(f"  - 最大页数: {args.max_pages}")
+        print(f"- Bot用户名: @{bot_username}")
+        print(f"- Start参数: {start_param}")
+        print(f"- 输出目录: {args.out}")
     except ValueError as e:
         print(f"❌ 链接解析失败: {e}")
         return
@@ -342,7 +353,8 @@ async def main():
     out_dir = Path(args.out) / bot_username / start_param
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"  - 保存路径: {out_dir}")
+    print(f"- 保存路径: {out_dir}")
+    print(f"{'='*60}")
 
     # 创建Telegram客户端
     # 确保session文件路径是绝对路径
@@ -370,7 +382,7 @@ async def main():
                 return
 
         # 与Bot交互并下载资源
-        await interact_with_bot(client, bot_username, start_param, out_dir, args.max_pages)
+        await interact_with_bot(client, bot_username, start_param, out_dir)
     finally:
         if client.is_connected():
             client.disconnect()

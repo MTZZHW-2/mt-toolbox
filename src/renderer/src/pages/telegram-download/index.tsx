@@ -33,7 +33,6 @@ export default function TelegramDownload() {
     'outputPath',
     async () => (await window.api.getDownloadsPath()) || '',
   );
-  const [maxPages, setMaxPages] = usePersistedState('telegram-download', 'maxPages', '100');
   const [startFrom, setStartFrom] = useState('1');
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -120,7 +119,6 @@ export default function TelegramDownload() {
         apiHash,
         url,
         outputPath,
-        maxPages,
         startFrom,
       });
 
@@ -236,23 +234,6 @@ export default function TelegramDownload() {
                 </Button>
               </div>
             </div>
-
-            {/* 最大翻页次数 - 仅 Bot 模式 */}
-            {mode === 'bot' && (
-              <div className="space-y-2">
-                <Label htmlFor="maxPages">最大翻页次数</Label>
-                <Input
-                  id="maxPages"
-                  type="number"
-                  min="0"
-                  value={maxPages}
-                  onChange={(e) => setMaxPages(e.target.value)}
-                  disabled={isProcessing}
-                  className="w-32"
-                />
-                <p className="text-muted-foreground text-sm">设为 0 表示不限制</p>
-              </div>
-            )}
 
             {/* 起始位置 - 仅频道评论模式 */}
             {mode === 'channel-comments' && (

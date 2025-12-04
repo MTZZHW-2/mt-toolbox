@@ -48,7 +48,6 @@ export interface TelegramDownloadOptions {
   apiHash: string;
   url: string;
   outputPath?: string;
-  maxPages?: string;
   startFrom?: string;
 }
 
