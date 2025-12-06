@@ -192,7 +192,7 @@ async def find_next_page_button(messages, current_page):
 
             # 优先查找"下一页"类按钮
             text = button.text
-            ARROW_TOKENS = ("▶️", "➡️")
+            ARROW_TOKENS = ("▶️", "➡️", "下一页")
             if any(tok in text for tok in ARROW_TOKENS):
                 next_arrow_button = button
 
