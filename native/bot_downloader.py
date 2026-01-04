@@ -15,7 +15,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 from textwrap import dedent
 
-from typing import cast
+from typing import cast, Optional
 
 from telethon import TelegramClient
 from telethon.errors import (
@@ -211,7 +211,7 @@ async def find_next_page_button(messages, current_page):
     return None, None
 
 
-async def interact_with_bot(client: TelegramClient, bot_username: str, start_param: str, out_dir: Path, wait_interval: int = 20):
+async def interact_with_bot(client: TelegramClient, bot_username: str, start_param: str, out_dir: Path, wait_interval: int = 20, click_start_button: bool = False, start_button_text: Optional[str] = None):
     """
     与Bot交互，发送start命令并下载所有返回的媒体资源
     """
@@ -231,6 +231,62 @@ async def interact_with_bot(client: TelegramClient, bot_username: str, start_par
 
         # 发送消息
         await client.send_message(bot_entity, command)
+
+        # 如果需要点击开始按钮
+        if click_start_button:
+            print("⏳ 等待开始消息...")
+            await asyncio.sleep(wait_interval)
+
+            # 获取最新消息
+            start_messages: TotalList = cast(TotalList, await client.get_messages(bot_entity, limit=5))
+            new_start_messages = [message for message in start_messages if message.id > baseline_message_id]
+
+            # 查找第一条带按钮的消息
+            for message in new_start_messages:
+                if message.buttons:
+                    # 收集所有按钮
+                    all_buttons = []
+                    for row in message.buttons:
+                        for button in row:
+                            all_buttons.append(button)
+
+                    if not all_buttons:
+                        continue
+
+                    target_button = None
+
+                    # 如果指定了按钮文本，查找匹配的按钮
+                    if start_button_text:
+                        for button in all_buttons:
+                            if start_button_text in button.text:
+                                target_button = button
+                                break
+
+                        if not target_button:
+                            # 没找到匹配的按钮，显示所有可用按钮
+                            print(f"❌ 未找到包含'{start_button_text}'的按钮")
+                            print("可用的按钮：")
+                            for idx, button in enumerate(all_buttons, 1):
+                                print(f"  {idx}. {button.text}")
+                            raise ValueError(f"未找到匹配的按钮文本: {start_button_text}")
+                    else:
+                        # 未指定按钮文本，使用第一个按钮
+                        target_button = all_buttons[0]
+
+                        # 如果有多个按钮，提示用户
+                        if len(all_buttons) > 1:
+                            print(f"ℹ️  检测到 {len(all_buttons)} 个按钮：")
+                            for idx, button in enumerate(all_buttons, 1):
+                                print(f"  {idx}. {button.text}")
+                            print(f"将点击第一个按钮，如需点击其他按钮请使用 --start-button-text 参数")
+
+                    # 点击按钮
+                    print(f"🔘 点击开始按钮: {target_button.text}")
+                    print(f"{'='*60}")
+                    await message.click(data=target_button.data if hasattr(target_button, 'data') else None)
+                    # 更新baseline，避免重复处理开始消息
+                    baseline_message_id = message.id
+                    break
 
         total_downloaded = 0
         current_page = 1
@@ -331,6 +387,8 @@ async def main():
     parser.add_argument("--session", default="downloader", help="会话文件名 (默认: downloader)")
     parser.add_argument("--session-dir", default=None, help="会话文件目录 (默认: 脚本所在目录)")
     parser.add_argument("--wait-interval", type=int, default=20, help="等待Bot回复的间隔时间(秒) (默认: 20)")
+    parser.add_argument("--click-start-button", action="store_true", help="如果设置，则在发送/start命令后自动点击第一条消息中的按钮")
+    parser.add_argument("--start-button-text", default=None, help="指定要点击的按钮文本（支持部分匹配）。如果不指定则点击第一个按钮")
 
     args = parser.parse_args()
 
@@ -381,7 +439,7 @@ async def main():
                 return
 
         # 与Bot交互并下载资源
-        await interact_with_bot(client, bot_username, start_param, out_dir, args.wait_interval)
+        await interact_with_bot(client, bot_username, start_param, out_dir, args.wait_interval, args.click_start_button, args.start_button_text)
     finally:
         if client.is_connected():
             client.disconnect()

@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@renderer/components/base/dialog';
 import Select from '@renderer/components/ui/select';
+import { Checkbox } from '@renderer/components/ui/checkbox';
 import { usePersistedState } from '@renderer/hooks/use-persisted-state';
 import { SettingsIcon } from 'lucide-react';
 
@@ -35,6 +36,8 @@ export default function TelegramDownload() {
   );
   const [startFrom, setStartFrom] = useState('1');
   const [waitInterval, setWaitInterval] = usePersistedState('telegram-download', 'waitInterval', 20);
+  const [clickStartButton, setClickStartButton] = useState<boolean>(false);
+  const [startButtonText, setStartButtonText] = useState<string>();
   const [isProcessing, setIsProcessing] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -122,6 +125,8 @@ export default function TelegramDownload() {
         outputPath,
         startFrom,
         waitInterval,
+        clickStartButton,
+        startButtonText,
       });
 
       // 清理监听
@@ -268,6 +273,44 @@ export default function TelegramDownload() {
                   className="w-32"
                 />
                 <p className="text-muted-foreground text-sm">默认 20 秒，如果 Bot 响应较慢可以适当增加</p>
+              </div>
+            )}
+
+            {/* 按钮点击配置 - 仅 Bot 模式 */}
+            {mode === 'bot' && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="clickStartButton"
+                      checked={clickStartButton}
+                      onCheckedChange={setClickStartButton}
+                      disabled={isProcessing}
+                    />
+                    <Label htmlFor="clickStartButton" className="cursor-pointer">
+                      自动点击开始按钮
+                    </Label>
+                  </div>
+                  <p className="text-muted-foreground text-sm">
+                    某些 Bot 会先发送一条消息，需要点击按钮才能继续接收内容
+                  </p>
+                </div>
+
+                {clickStartButton && (
+                  <div className="space-y-2">
+                    <Label htmlFor="startButtonText">指定按钮文本（可选）</Label>
+                    <Input
+                      id="startButtonText"
+                      value={startButtonText}
+                      onChange={(e) => setStartButtonText(e.target.value)}
+                      placeholder="例如：开始、继续、下一步等"
+                      disabled={isProcessing}
+                    />
+                    <p className="text-muted-foreground text-sm">
+                      如果不指定，将点击第一个按钮。如果有多个按钮，请指定要点击的按钮文本
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

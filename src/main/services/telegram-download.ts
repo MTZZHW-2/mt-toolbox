@@ -75,6 +75,8 @@ export async function downloadFromTelegram(options: TelegramDownloadOptions): Pr
     outputPath = '',
     startFrom = '1',
     waitInterval = 20,
+    clickStartButton = false,
+    startButtonText,
     mode = 'bot',
     onProgress,
     onInputRequired,
@@ -114,6 +116,13 @@ export async function downloadFromTelegram(options: TelegramDownloadOptions): Pr
       // Bot 模式才需要 waitInterval 参数
       if (mode === 'bot' && waitInterval !== 20) {
         args.push('--wait-interval', String(waitInterval));
+      }
+      // Bot 模式才需要 clickStartButton 参数
+      if (mode === 'bot' && clickStartButton) {
+        args.push('--click-start-button');
+        if (startButtonText) {
+          args.push('--start-button-text', startButtonText);
+        }
       }
 
       const childProcess = spawn(command, args);

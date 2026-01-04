@@ -50,6 +50,8 @@ export interface TelegramDownloadOptions {
   outputPath?: string;
   startFrom?: string;
   waitInterval?: number;
+  clickStartButton?: boolean;
+  startButtonText?: string;
 }
 
 export interface VideoConverterOptions {
